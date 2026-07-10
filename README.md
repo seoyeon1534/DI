@@ -3,4 +3,4 @@
 
 - 사용 기술
    - Python 2.12
-   - Pandas, Numpy, Matplotlib
+   - Pandas, Numpy, Matplotlibgi
