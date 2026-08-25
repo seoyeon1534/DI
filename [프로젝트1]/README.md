@@ -90,12 +90,12 @@ drive.mount('/content/gdrive')
 ```
 project/
 ├── marketing_clean.csv
-├── marketing_segmented_1.csv
+├── marketing_segmented.csv
 └── notebook.ipynb
 ```
-노트북 내 경로 문자열(`/content/gdrive/MyDrive/아이펠_프로젝트/...`)을 실제 파일 위치로 일괄 수정하세요.
+노트북 내 경로 문자열(`C:\DI\[프로젝트1]\marketing_campaign.csv`)을 실제 파일 위치로 일괄 수정하세요.
 
-> ⚠️ **재현성 주의사항**: 현재 노트북에는 Colab 경로(`/content/gdrive/...`)와 업로드 경로(`/mnt/user-data/uploads/...`)가 셀마다 혼재되어 있습니다. Restart & Run All 실행 전 **하나의 경로로 통일**하는 것을 권장합니다.
+> ⚠️ **재현성 주의사항**: Restart & Run All 실행 전 **하나의 경로로 통일**하는 것을 권장합니다.
 
 ---
 
@@ -108,7 +108,7 @@ project/
 | Step 0 | 데이터 로드 및 기초 확인 (`AnyAccepted` 정의 검증) | `df` |
 | Step 1 | H1 — 단순 로지스틱 회귀 (오즈비, marginal effect, Cohen's d) | 오즈비 7.542 |
 | Step 2 | H2 — Model A(인구통계 통제) / Model B(소비·채널 추가 통제), VIF 점검 | 오즈비 6.873 / 6.840 |
-| Step 3 | H3-1 — k-prototypes 클러스터링 (변수 준비 → Elbow/Silhouette로 k 결정 → k=4 최종 클러스터링 → gamma 실험 → 세그먼트 프로파일링/네이밍) | `df["세그먼트"]`, `marketing_segmented_1.csv` |
+| Step 3 | H3-1 — k-prototypes 클러스터링 (변수 준비 → Elbow/Silhouette로 k 결정 → k=4 최종 클러스터링 → gamma 실험 → 세그먼트 프로파일링/네이밍) | `df["세그먼트"]`, `marketing_segmented.csv` |
 | Step 4 | H3-2 — 세그먼트별 오즈비 계산 + 교호작용항 모델 + LR test | LR test p=0.4288 |
 | Step 5 | 종합 결론 및 실행 제안 | — |
 | Step 6 | 한계 및 제언 | — |
