@@ -28,12 +28,12 @@ WHERE
   category_value = 'Computers&Accessories' -- 원하는 카테고리로 수정 가능
 ORDER BY 
   discount_percentage DESC
-LIMIT 20;
+LIMIT 20
 ```
 
 **4. 결과**
 ![alt text](image.png)
-➜ (실행 화면 캡처 첨부 후 결과 설명 작성)
+➜ 'Computers&Accessories' 카테고리 안에서 할인율 89~94%에 달하는 케이블/충전기류 상품들이 상위에 노출되었고, 평점도 3.9~4.3으로 낮지 않아 실제로 "혜택도 크고 품질도 검증된" 상품이 잘 걸러지는 것을 확인
 
 ---
 
@@ -63,7 +63,7 @@ WHERE
 
 **4. 결과**
 ![alt text](image-1.png)
-➜ (실행 화면 캡처 첨부 후 결과 설명 작성)
+➜ 'durable' 키워드로 검색한 결과, 평점 3.9~4.4대의 USB/충전 케이블 제품들이 다수 검색되었고, 리뷰 내용에도 "durable", "cable is efficient" 등 내구성 관련 언급이 실제로 포함되어 있어 키워드 매칭이 의도대로 작동함을 확인
 
 ---
 
@@ -80,13 +80,13 @@ WHERE
 
 ```sql
 -- (탐색) 정가 분포 확인
--- SELECT 
---   MIN(actual_price) AS 최소값,
---   MAX(actual_price) AS 최대값,
---   ROUND(AVG(actual_price), 2) AS 평균값,
---   PERCENTILE_CONT(0.33) WITHIN GROUP (ORDER BY actual_price) AS 하위33퍼,
---   PERCENTILE_CONT(0.66) WITHIN GROUP (ORDER BY actual_price) AS 상위66퍼
--- FROM amazon_clean
+SELECT 
+  MIN(actual_price) AS 최소값,
+  MAX(actual_price) AS 최대값,
+  ROUND(AVG(actual_price), 2) AS 평균값,
+  PERCENTILE_CONT(0.33) WITHIN GROUP (ORDER BY actual_price) AS 하위33퍼,
+  PERCENTILE_CONT(0.66) WITHIN GROUP (ORDER BY actual_price) AS 상위66퍼
+FROM amazon_clean
 
 SELECT *
 FROM (
@@ -103,12 +103,12 @@ FROM (
   FROM amazon_clean
 ) 
 WHERE price_tag = '저가' -- 저가, 중가, 고가 중 선택
-ORDER BY 가격 DESC;
+ORDER BY 가격 DESC
 ```
 
 **4. 결과**
 ![alt text](image-2.png)
-➜ (실행 화면 캡처 첨부 후 결과 설명 작성)
+➜ '저가'(999원 이하) 구간으로 필터링한 결과, 청소기/조리도구/헤드셋 등 카테고리는 서로 다르지만 모두 가격 999원, 평점 4.0~4.4대인 상품들이 골고루 나와, 예산 구간 내에서 품질 좋은 상품을 찾는 목적에 맞게 작동
 
 ---
 
@@ -121,13 +121,15 @@ ORDER BY 가격 DESC;
 ➜ 처음에는 "할인율 × 평점"을 결합한 스코어를 시도했으나, 할인율이 0인 상품이 원가 자체가 낮고 평점이 좋아도 스코어가 0이 되어버리는 문제가 있었습니다. "할인 받는 것"과 "원래 가격 대비 가치가 좋은 것"은 서로 다른 컨셉이라 판단해, 이 추천 시스템은 **할인 여부와 무관하게 실제 지불 가격(discounted_price) 대비 평점이 높은 상품**을 찾는 것으로 컨셉을 확정했습니다.
 
 **3. 구현 로직**
+
 ➜ 시도한 세 가지 버전을 순서대로 검증했습니다.
 - ver.1: 할인율·평점 각각 `ORDER BY` 정렬 → 두 지표가 결합되지 않고 할인율에 좌우되는 문제
 - ver.2: 할인율×평점(스케일링) 곱셈 스코어 → 할인율 0인 상품이 부당하게 낮은 점수를 받는 문제
 - ver.3(최종): `discounted_price`가 할인 여부와 무관하게 이미 "실제 지불 가격" → "할인을 받았는지 여부"는 반영이 되지 않고 최종 판매가에만 영향
-➜ 결국 가성비를 어떻게 정의할 것인가에 따라 아래의 두가지 방법으로 구분한 뒤 억지로 합치지 말고 각자의 방법을 살리기로 함
--- (A) "원래는 비쌌는데 할인 받아서 싸게 살 수 있고 평점도 좋은 상품"
--- (B) "그냥 최종적으로 돈 대비 평점이 좋은 상품" (할인 여부 상관없이)
+
+➜ 결국 가성비를 어떻게 정의할 것인가에 따라 **아래의 두가지 방법**으로 구분한 뒤 억지로 합치지 말고 각자의 방법을 살리기로 함
+  - (A) "원래는 비쌌는데 할인 받아서 싸게 살 수 있고 평점도 좋은 상품"  → ver. 2
+  - (B) "그냥 최종적으로 돈 대비 평점이 좋은 상품" (할인 여부 상관없이) → ver. 3
 
 ```sql
 -- ver. 1 단순 ORDER BY로 순서 매기기
@@ -151,7 +153,7 @@ SELECT
   CASE WHEN discount_percentage = 0 THEN rating * 20 ELSE discount_percentage * (rating * 20) END AS 가성비스코어
 FROM amazon_clean 
 ORDER BY 
-  가성비스코어 DESC
+  가성비스코어
 --> 또 이렇게 하면 할인율이 0이지만 원래 원가가 낮은 상품이 가성비 스코어가 낮아짐..
 
 -- ver. 3 discounted_price 열 사용
@@ -166,17 +168,18 @@ FROM amazon_clean
 ORDER BY 
   가성비스코어 DESC
 -- > discounted_price 하나만 쓰면 "할인을 받았는지 여부"는 스코어에 전혀 반영이 안 되고, 그냥 최종 판매가가 싼 상품이 유리해짐..
-
 ```
 
 **4. 결과**
 **ver. 1 단순 ORDER BY로 순서 매기기**
 ![alt text](image-3.png)
+➜ ver.1(할인율·평점 정렬): 할인율 90%대 상품이 상위를 독점해, 평점 차이가 순위에 반영되기 어려운 문제를 확인
 **ver. 2 할인율 X 평점 (스케일링 O)**
-![alt text](image-4.png)
+![alt text](image-7.png)
+➜ ver.2(할인율×평점 곱셈): 가격이 낮은 상품은 흔히 '가성비'라는 키워드와 들어 맞지만 할인을 하지 않아 가성비스코어가 낮게 나타나는 왜곡될 수 있음을 확인
 **ver. 3 discounted_price 열 사용**
 ![alt text](image-5.png)
-➜ (실행 화면 캡처 첨부 후 결과 설명 작성)
+➜ ver.3(최종, 판매가 대비 평점): 판매가 39~59대의 저가 상품들이 90점대 가성비스코어로 상위에 올라, 할인 여부와 무관하게 "단순 적은 판매가로 좋은 평점"을 얻는 실제 목적과 어긋나는 문제를 확인
 
 ---
 
@@ -198,9 +201,9 @@ SELECT
   rating AS 평점,
   ROUND(AVG(rating) OVER (PARTITION BY SPLIT(category, '|')[3]), 1) AS 카테고리평균평점
 FROM amazon_clean
-ORDER BY 카테고리, 평점 DESC;
+ORDER BY 카테고리, 평점 DESC
 ```
 
 **4. 결과**
 ![alt text](image-6.png)
-➜ (실행 화면 캡처 첨부 후 결과 설명 작성)
+➜ 'Accessories' 카테고리 내에서 평점 4.4~4.6인 상품들이 카테고리 평균(4.0) 대비 높은 평점을 기록해 상위에 노출되었으며, 개별 상품 평점과 카테고리 평균을 나란히 비교
