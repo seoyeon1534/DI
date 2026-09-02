@@ -68,50 +68,66 @@ WHERE
 
 ---
 
-## 추천 시스템 3 _ "예산에 맞는 상품을 찾아드려요"
+## 추천 시스템 3 _ "이 카테고리, 찐팬들이 많아요"
 
 
 **1. 추천 시스템 이름**
-➜ "예산에 맞는 상품을 찾아드려요"
+➜ "이 카테고리, 찐팬들이 많아요"
 
 **2. 추천 시스템의 테마**
-➜ 정가(`actual_price`)를 저가/중가/고가 구간으로 나누고, 사용자가 원하는 예산 구간 안에서만 상품을 볼 수 있도록 합니다. 가격 분포(사분위수)를 먼저 분석해 구간 경계값을 데이터 기반으로 설정했습니다.
+➜ 한 사용자가 같은 카테고리 안에서 여러 상품에 리뷰를 남겼다면, 그 카테고리에 대한 관심이 있다고 볼 수 있습니다. 이런 반복 리뷰어(찐팬)가 많이 몰려있는 카테고리일수록 실제 사용자들의 관심과 만족도가 검증된 영역이라고 판단해, 그 카테고리 안의 상품들을 추천합니다. 이 데이터셋에는 클릭/구매 로그 같은 직접적인 행동 데이터가 없어, `user_id`가 여러 리뷰에 걸쳐 콤마로 뭉쳐있는 구조를 활용해 "반복 리뷰 행동"을 간접적으로 사용자 행동 패턴 지표로 삼았습니다.
+
 
 **3. 구현 로직**
-➜ `PERCENTILE_CONT`로 가격 분포의 33/66 퍼센타일을 확인해 구간 경계(999 / 2900)를 정했습니다. `CASE WHEN`으로 가격 구간 라벨(`price_tag`)을 만들고, 특정 구간만 보고 싶을 때는 서브쿼리로 감싸 바깥에서 `WHERE`로 필터링했습니다.
+➜ 먼저 `user_id`를 콤마 기준으로 UNNEST해서 상품(행) 단위였던 데이터를 "사용자-상품" 쌍으로 펼쳤습니다. 이후 사용자별·카테고리별로 몇 개의 서로 다른 상품에 리뷰를 남겼는지 집계해, 5개 이상이면 그 카테고리의 "찐팬"으로 간주했습니다. 마지막으로 카테고리별 찐팬 수를 집계해, 찐팬이 많은 카테고리의 상품일수록 상위에 노출되도록 했습니다.
 
 ```sql
--- (탐색) 정가 분포 확인
-SELECT 
-  MIN(actual_price) AS 최소값,
-  MAX(actual_price) AS 최대값,
-  ROUND(AVG(actual_price), 2) AS 평균값,
-  PERCENTILE_CONT(0.33) WITHIN GROUP (ORDER BY actual_price) AS 하위33퍼,
-  PERCENTILE_CONT(0.66) WITHIN GROUP (ORDER BY actual_price) AS 상위66퍼
-FROM amazon_clean
+WITH 
+user_category AS (
+    -- 상품(행) 단위 → 사용자-상품 쌍으로 펼치기
+    SELECT 
+        product_id,
+        SPLIT(category, '|')[3] AS category_value,
+        TRIM(u) AS user_id
+    FROM amazon_clean,
+         UNNEST(SPLIT(user_id, ',')) AS t(u)
+),
+user_category_count AS (
+    -- 사용자별 · 카테고리별 리뷰한 상품 수 집계
+    SELECT 
+        user_id,
+        category_value,
+        COUNT(DISTINCT product_id) AS 리뷰상품수
+    FROM user_category
+    GROUP BY user_id, category_value
+),
+loyal_users AS (
+    -- 같은 카테고리에서 5개 이상 상품에 리뷰 남긴 "찐팬"만 선별
+    SELECT category_value, user_id
+    FROM user_category_count
+    WHERE 리뷰상품수 >= 5
+),
+category_loyalty AS (
+    -- 카테고리별 찐팬 수 집계
+    SELECT category_value, COUNT(DISTINCT user_id) AS 찐팬수
+    FROM loyal_users
+    GROUP BY category_value
+)
 
-SELECT *
-FROM (
-  SELECT  
-    product_name AS 제품명,
-    category AS 카테고리,
-    rating AS 평점,
-    actual_price AS 가격,
-    CASE 
-      WHEN actual_price <= 999 THEN '저가' 
-      WHEN actual_price <= 2900 THEN '중가' 
-      ELSE '고가' 
-    END AS price_tag
-  FROM amazon_clean
-) 
-WHERE price_tag = '저가' -- 저가, 중가, 고가 중 선택
-ORDER BY 가격 DESC
+SELECT 
+    a.product_name AS 제품명,
+    SPLIT(a.category, '|')[3] AS 카테고리,
+    a.rating AS 평점,
+    cl.찐팬수
+FROM amazon_clean a
+JOIN category_loyalty cl
+    ON SPLIT(a.category, '|')[3] = cl.category_value
+ORDER BY cl.찐팬수 DESC, a.rating DESC
 ```
 
 **4. 결과**
-![alt text](image-2.png)
-➜ '저가'(999원 이하) 구간으로 필터링한 결과, 청소기/조리도구/헤드셋 등 카테고리는 서로 다르지만 모두 가격 999원, 평점 4.0~4.4대인 상품들이 골고루 나와, 예산 구간 내에서 품질 좋은 상품을 찾는 목적에 맞게 작동
-
+![alt text](image-8.png)
+➜'Cables&Accessories'와 'Televisions' 카테고리가 찐팬수 16명으로 가장 높게 나타났으며, 특히 'Cables&Accessories'는 평점 4.5~5.0의 다양한 케이블 제품들이 상위권을 차지해, 반복 리뷰어가 많이 몰린 카테고리일수록 실제로 검증된 상품이 다수 포진해 있음을 확인
 ---
 
 ## 추천 시스템 4 _ "할인과 퀄리티를 동시에 누릴 수 있는 상품이에요", "적은 돈으로 좋은 평점을 받는 상품이에요"
