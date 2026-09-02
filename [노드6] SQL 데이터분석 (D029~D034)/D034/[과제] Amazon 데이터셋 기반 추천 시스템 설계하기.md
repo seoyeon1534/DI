@@ -128,6 +128,7 @@ ORDER BY cl.찐팬수 DESC, a.rating DESC
 **4. 결과**
 ![alt text](image-8.png)
 ➜'Cables&Accessories'와 'Televisions' 카테고리가 찐팬수 16명으로 가장 높게 나타났으며, 특히 'Cables&Accessories'는 평점 4.5~5.0의 다양한 케이블 제품들이 상위권을 차지해, 반복 리뷰어가 많이 몰린 카테고리일수록 실제로 검증된 상품이 다수 포진해 있음을 확인
+
 ---
 
 ## 추천 시스템 4 _ "할인과 퀄리티를 동시에 누릴 수 있는 상품이에요", "적은 돈으로 좋은 평점을 받는 상품이에요"
