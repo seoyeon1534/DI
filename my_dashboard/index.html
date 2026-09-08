@@ -199,10 +199,13 @@
   </div>
   <div class="panel">
     <h3>State별 기회/개선 지도</h3>
-    <div class="zone-legend">
-      <div><span class="dot" style="background:#0d366b"></span>진한 파랑 = 기회 신호 강함 (이익률 높고 매출 낮음)</div>
-      <div><span class="dot" style="background:#cde2fb"></span>옅은 파랑 = 개선 필요 신호 강함 (매출 높고 이익률 낮음)</div>
-      <div><span class="dot" style="background:var(--gridline)"></span>회색 = 현재 필터에 해당 데이터 없음</div>
+    <div style="margin-bottom: 16px;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:6px;">
+        <span>기회 신호 강함<br/>(이익률↑ 매출↓)</span>
+        <span>개선 신호 강함<br/>(매출↑ 이익률↓)</span>
+      </div>
+      <div style="height:20px; background:linear-gradient(to right, #0d366b, #2c5aa0, #4a7fb8, #7fa6d1, #b0cee8, #cde2fb); border-radius:4px; border:1px solid var(--gridline);"></div>
+      <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">회색 = 현재 필터에 해당 데이터 없음</div>
     </div>
     <div class="chart-box large"><svg id="usMapSvg" class="state-map" viewBox="-60 0 1040 615"></svg></div>
   </div>
