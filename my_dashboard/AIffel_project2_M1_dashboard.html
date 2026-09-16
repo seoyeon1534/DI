@@ -1,0 +1,888 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>리워드 손익 감사</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@sgratzl/chartjs-chart-boxplot@4/build/index.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+svg,canvas{display:block;}
+:root{
+  --bg:#EAF0E7; --card:#FFFDF8; --border:#DFE3D6;
+  --sidebar:#0E3A2A; --sidebar-hi:#F9D2BA; --grid:#E9EEE3;
+  --t1:#20261B; --t2:#4B5245; --t3:#707765; --t4:#93998A;
+  --green:#1D4533; --green-l:#3F7A5C; --green-bg:#E1EEE5;
+  --brown:#5E3122; --brown-l:#96654C; --brown-bg:#F3E4D8;
+  --peach:#F9D2BA; --peach-strong:#E8A87C;
+  --amber:#8A6100; --amber-bg:#F6EFDE;
+  --red:#A93A2C; --red-bg:#FAE7E2;
+  --info-bg:#EDEFE6; --info-t:#4B5245;
+  --font:'IBM Plex Sans KR',-apple-system,sans-serif; --mono:'IBM Plex Mono',Consolas,monospace; --r:10px;
+}
+html,body{height:auto;}
+body{font-family:var(--font);background:var(--bg);color:var(--t1);font-size:14.5px;line-height:1.55;}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+a{color:inherit;}
+
+.shell{display:flex;min-height:100vh;align-items:flex-start;}
+
+/* ---------- sidebar ---------- */
+.sidebar{width:216px;background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sb-logo{padding:20px 18px 14px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;gap:10px;align-items:center;}
+.sb-ic{width:36px;height:36px;background:rgba(255,255,255,.1);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sb-logo .brand{font-size:14.5px;font-weight:700;color:#fff;letter-spacing:-.1px;}
+.sb-logo .sub{font-size:11.5px;color:rgba(255,255,255,.5);margin-top:1px;}
+.sb-nav{flex:1;padding:10px 0;}
+.sb-group{font-size:10.5px;color:rgba(255,255,255,.32);text-transform:uppercase;letter-spacing:.07em;padding:14px 18px 5px;}
+.sb-nav a{display:flex;align-items:center;gap:9px;padding:9px 18px;color:rgba(255,255,255,.62);text-decoration:none;font-size:13.5px;border-left:2px solid transparent;transition:all .15s;}
+.sb-nav a svg{flex-shrink:0;}
+.sb-nav a:hover{background:rgba(255,255,255,.06);color:#fff;}
+.sb-nav a.active{border-left-color:var(--sidebar-hi);background:rgba(255,255,255,.08);color:#fff;font-weight:600;}
+.sb-footer{padding:14px 18px 18px;border-top:1px solid rgba(255,255,255,.1);font-size:11px;color:rgba(255,255,255,.42);line-height:1.7;}
+.sb-footer b{color:rgba(255,255,255,.68);}
+
+/* ---------- main ---------- */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.topbar{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 22px;border-bottom:1px solid var(--border);background:var(--card);flex-wrap:wrap;position:sticky;top:0;z-index:5;}
+.topbar-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.topbar h1{font-size:16.5px;font-weight:700;}
+.exp-badge{background:var(--green-bg);color:var(--green);font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:20px;}
+.topbar .meta{font-size:12.5px;color:var(--t3);}
+.btn-sm{padding:7px 15px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--t2);font-family:inherit;}
+.btn-sm:hover{border-color:var(--green);color:var(--green);}
+
+.content{padding:18px 22px 50px;display:flex;flex-direction:column;gap:14px;max-width:1400px;}
+
+.section-label{font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 -2px;scroll-margin-top:70px;}
+
+/* card */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(32,38,27,.05);}
+.card-hd{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;}
+.card-num{width:25px;height:23px;border-radius:6px;background:var(--sidebar);color:#fff;font-family:var(--mono);font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.card-num.alert{background:var(--red);}
+.card-title{font-size:14.5px;font-weight:700;}
+.card-sub{font-size:11.5px;color:var(--t3);margin-top:1px;}
+
+/* grids */
+.row1{display:grid;grid-template-columns:repeat(6,1fr);gap:11px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;box-shadow:0 1px 3px rgba(32,38,27,.04);}
+.kpi-lbl{font-size:10.5px;color:var(--t4);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.kpi-val{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--t1);line-height:1.15;}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700;margin-top:6px;}
+.b-g{background:var(--green-bg);color:var(--green);}
+.b-r{background:var(--red-bg);color:var(--red);}
+.b-a{background:var(--amber-bg);color:var(--amber);}
+.b-i{background:var(--info-bg);color:var(--info-t);}
+
+.row2{display:grid;grid-template-columns:1.7fr 1fr;gap:14px;}
+.row3{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.row4{display:grid;grid-template-columns:1fr 1.15fr;gap:14px;}
+
+/* verdict / warn list */
+.warn-list{display:flex;flex-direction:column;gap:6px;}
+.warn-item{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;border:1px solid;}
+.warn-item.ok{background:var(--green-bg);border-color:rgba(29,69,51,.18);}
+.warn-item.warn{background:var(--amber-bg);border-color:rgba(138,97,0,.18);}
+.warn-item.error{background:var(--red-bg);border-color:rgba(169,58,44,.2);}
+.warn-item.info{background:var(--info-bg);border-color:rgba(75,82,69,.12);}
+.warn-icon{font-size:13px;flex-shrink:0;width:18px;text-align:center;}
+.warn-body{flex:1;min-width:0;}
+.warn-title{font-size:12.5px;font-weight:700;color:var(--t1);}
+.warn-desc{font-size:11px;color:var(--t3);margin-top:1px;}
+.warn-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0;}
+
+/* chart box */
+.chart-box{position:relative;height:230px;}
+.chart-box.tall{height:260px;}
+.chart-box.short{height:190px;}
+
+/* tabs */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.tabs button{font:inherit;font-family:var(--font);font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--bg);color:var(--t2);cursor:pointer;}
+.tabs button.active{background:var(--green);color:#fff;border-color:var(--green);}
+
+/* proportion bars (reused component) */
+.pchart{position:relative;padding-left:118px;}
+.prow{position:relative;height:34px;margin-bottom:18px;}
+.prow:last-child{margin-bottom:4px;}
+.prow-label{position:absolute;left:-118px;top:50%;transform:translateY(-50%);width:106px;font-size:11.5px;text-align:right;color:var(--t1);line-height:1.3;}
+.ptrack{position:relative;height:20px;}
+.pgrid{position:absolute;inset:0;}
+.pgridline{position:absolute;top:-6px;bottom:-6px;width:1px;background:var(--grid);}
+.pgridline span{position:absolute;top:100%;margin-top:3px;font-family:var(--mono);font-size:9.5px;color:var(--t4);transform:translateX(-50%);}
+.pbar{position:absolute;left:0;top:0;height:100%;border-radius:0 5px 5px 0;transition:width .35s ease;}
+.pval{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--t1);white-space:nowrap;}
+.pval.inside{transform:translate(-100%,-50%);color:#fff;}
+.pci{position:absolute;top:-5px;height:30px;width:2px;background:var(--t1);opacity:.5;}
+.pci i{position:absolute;width:6px;height:2px;background:var(--t1);left:-2px;}
+
+/* filters */
+.filter-row{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:13px;}
+.filter-item{display:flex;flex-direction:column;gap:3px;}
+.filter-item label{font-size:10.5px;color:var(--t4);}
+.filter-item select{font:inherit;font-size:12px;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--t1);}
+.explore-result{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:13px;}
+.explore-stat{flex:1 1 190px;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:11px 14px;}
+.explore-bar-wrap{flex:2 1 260px;}
+.explore-track{position:relative;height:24px;background:var(--bg);border-radius:5px;overflow:hidden;border:1px solid var(--border);}
+.explore-bar{position:absolute;left:0;top:0;height:100%;background:var(--green);transition:width .3s ease;}
+.explore-bar-label{position:absolute;top:50%;left:9px;transform:translateY(-50%);font-family:var(--mono);font-size:11.5px;font-weight:600;color:#fff;}
+
+/* table */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+table th{font-size:10px;font-weight:700;color:var(--t4);text-transform:uppercase;padding:0 7px 7px;border-bottom:1.5px solid var(--border);text-align:left;white-space:nowrap;}
+table td{padding:7px;border-bottom:1px solid var(--grid);white-space:nowrap;color:var(--t2);}
+table tr:last-child td{border-bottom:none;}
+table tr.dim{opacity:.3;}
+table tbody tr:hover{background:var(--bg);}
+.chip-dot{display:inline-block;width:8px;height:8px;border-radius:3px;}
+.verdict-badge{font-size:10px;font-weight:700;padding:2.5px 9px;border-radius:10px;white-space:nowrap;}
+
+/* AI insight cards */
+.ai-grid-wrap{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.ai-item{border:1px solid var(--border);border-radius:9px;padding:13px 14px;background:var(--bg);}
+.ai-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.ai-idx{padding:3px 9px;border-radius:6px;background:var(--sidebar);color:#fff;font-family:var(--mono);font-size:11px;font-weight:600;}
+.ai-name{font-size:13px;font-weight:700;flex:1;}
+.ai-metrics{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.ai-mrow{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:6px 9px;}
+.ai-mrow-lbl{font-size:9.5px;color:var(--t4);text-transform:uppercase;margin-bottom:1px;}
+.ai-mrow-val{font-size:12px;font-weight:600;font-family:var(--mono);}
+.ai-note{font-size:11.5px;color:var(--t2);line-height:1.6;border-top:1px solid var(--border);padding-top:7px;}
+.ai-note b{color:var(--t1);}
+
+/* callouts / notes */
+.callout{display:flex;gap:9px;border-radius:9px;padding:11px 13px;margin-top:11px;font-size:12.5px;line-height:1.65;background:var(--info-bg);color:var(--t2);}
+.callout b{color:var(--t1);}
+.note{font-size:11px;color:var(--t4);margin-top:8px;line-height:1.6;}
+.stat-line{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;}
+.stat-chip{font-family:var(--mono);font-size:10.5px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 9px;color:var(--t2);}
+.stat-chip b{color:var(--t1);}
+.aside-note{font-size:11px;color:var(--t4);font-style:italic;margin-top:8px;padding-left:9px;border-left:2px solid var(--border);}
+.toggle-row{display:flex;align-items:center;gap:9px;margin-bottom:12px;}
+.switch{display:inline-flex;background:var(--bg);border-radius:999px;padding:3px;gap:2px;border:1px solid var(--border);}
+.switch button{border:none;background:transparent;font:inherit;font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:999px;cursor:pointer;color:var(--t2);}
+.switch button.active{background:var(--green);color:#fff;}
+.chart-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--t3);margin-bottom:12px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:5px;}
+.ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.cond-list{display:flex;flex-direction:column;gap:7px;margin-top:12px;}
+.cond{display:flex;gap:9px;align-items:flex-start;background:var(--bg);border-radius:7px;padding:8px 10px;font-size:11.5px;color:var(--t2);}
+.cond-mark{flex-shrink:0;width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;background:var(--red);}
+.cond-mark.pending{background:var(--t4);}
+.cond-mark.warn{background:var(--amber);}
+
+/* kpi note */
+.kpi-note{font-size:9.5px;color:var(--t4);margin-top:5px;line-height:1.45;}
+
+/* glossary callout */
+.glossary{background:var(--brown-bg);color:var(--t2);}
+.glossary b{color:var(--brown);}
+
+/* hypothesis question banner */
+.hypo-banner{display:flex;align-items:center;gap:16px;padding:20px 22px;background:var(--sidebar);border-radius:var(--r);flex-wrap:wrap;margin-top:2px;scroll-margin-top:70px;}
+.cond-box-nested{border:1px solid var(--border);border-radius:9px;padding:12px 13px;margin-top:12px;background:var(--bg);}
+.cond-box-nested-title{font-size:11.5px;font-weight:700;color:var(--t2);margin-bottom:8px;}
+.hypo-pill{background:var(--sidebar-hi);color:var(--sidebar);font-family:var(--mono);font-weight:800;font-size:13px;padding:6px 13px;border-radius:7px;flex-shrink:0;}
+.hypo-cat{color:rgba(255,255,255,.55);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;flex-shrink:0;}
+.hypo-q{color:#fff;font-size:20px;font-weight:700;line-height:1.4;flex:1;min-width:240px;letter-spacing:-.2px;}
+
+/* per-card hypothesis quote */
+.hypo-quote{font-size:11.5px;color:var(--t3);font-style:italic;margin-top:10px;padding-left:10px;border-left:2px solid var(--brown-l);line-height:1.6;}
+.hypo-quote b{font-style:normal;color:var(--brown);}
+
+/* H2-1 side stat list */
+.hstat-flex{display:flex;gap:18px;align-items:stretch;}
+.hstat-list{display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:120px;flex-shrink:0;}
+.hstat-row{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:var(--t2);}
+.hstat-row b{font-family:var(--mono);color:var(--t1);font-weight:600;}
+.hstat-row i{font-size:9px;color:var(--t4);font-style:normal;margin-left:3px;}
+
+.formula-note{font-family:var(--mono);font-size:11.5px;color:var(--t2);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 12px;margin-top:10px;display:inline-block;}
+
+/* profit action plan (synthesis section) */
+.plan-item{border:1px solid var(--border);border-radius:10px;padding:16px 18px;background:var(--bg);}
+.plan-item+.plan-item{margin-top:12px;}
+.plan-hd{display:flex;align-items:center;gap:11px;margin-bottom:3px;}
+.plan-num{width:27px;height:27px;border-radius:50%;background:var(--sidebar);color:#fff;font-family:var(--mono);font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.plan-title{font-size:14px;font-weight:700;color:var(--t1);}
+.plan-sub{font-size:11.5px;color:var(--t3);font-style:italic;margin:2px 0 10px 38px;}
+.plan-bullets{display:flex;flex-direction:column;gap:6px;margin-left:38px;}
+.plan-bullet{font-size:12.5px;color:var(--t2);line-height:1.6;}
+.plan-bullet b{color:var(--t1);font-family:var(--mono);}
+.plan-bullet-sub{font-size:11.5px;color:var(--t3);margin-left:14px;}
+.plan-why{font-size:11.5px;color:var(--t2);line-height:1.6;border-top:1px solid var(--border);margin-top:11px;padding-top:9px;}
+.plan-why b{color:var(--brown);}
+.plan-roadmap{font-family:var(--mono);font-size:11px;color:var(--t2);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;white-space:pre;overflow-x:auto;line-height:1.9;}
+.plan-principle{font-size:12px;color:var(--t2);margin-top:10px;}
+.plan-principle b{color:var(--t1);}
+@media (max-width:640px){.plan-sub,.plan-bullets{margin-left:0;}.plan-roadmap{font-size:9.5px;}}
+
+/* step guide */
+.step-guide{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;box-shadow:0 1px 3px rgba(32,38,27,.05);}
+.step-guide-hd{display:flex;align-items:center;gap:11px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.step-guide-icon{width:34px;height:34px;border-radius:8px;background:var(--sidebar);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.step-guide-title{font-size:14.5px;font-weight:700;}
+.step-guide-sub{font-size:11.5px;color:var(--t3);margin-top:1px;}
+.step-guide-body{display:grid;grid-template-columns:1.2fr 1fr 1.3fr;gap:20px;}
+.step-col-title{font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;}
+.step-flow{display:flex;flex-direction:column;gap:7px;}
+.step-flow-item{display:flex;align-items:flex-start;gap:8px;}
+.step-fn{width:21px;height:20px;border-radius:5px;background:var(--sidebar);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.step-ft{font-size:12px;color:var(--t2);line-height:1.5;}
+.step-ft b{color:var(--t1);}
+.step-iact{display:flex;flex-direction:column;gap:7px;}
+.step-iact-item{display:flex;gap:8px;background:var(--bg);border-radius:7px;padding:8px 10px;font-size:12px;color:var(--t2);line-height:1.5;}
+.step-iact-item b{color:var(--t1);}
+.step-q{display:flex;flex-direction:column;gap:7px;}
+.step-q-item{border-left:2px solid var(--green);padding:6px 10px;background:var(--bg);border-radius:0 7px 7px 0;}
+.step-q-txt{font-size:12px;font-weight:600;color:var(--t1);line-height:1.4;}
+
+footer{margin-top:20px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--t4);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+
+#tooltip{position:fixed;z-index:1000;background:var(--t1);color:var(--card);font-family:var(--font);font-size:11px;line-height:1.5;padding:7px 9px;border-radius:7px;pointer-events:none;opacity:0;transform:translate(-50%,-110%);transition:opacity .08s ease;max-width:220px;box-shadow:0 6px 16px rgba(0,0,0,.22);}
+#tooltip.show{opacity:1;}
+#tooltip .tt-value{font-family:var(--mono);font-size:12px;font-weight:700;}
+
+@media (max-width:880px){
+  .shell{display:block;}
+  .sidebar{position:static;width:100%;height:auto;flex-direction:row;align-items:center;overflow-x:auto;}
+  .sb-logo{border-bottom:none;border-right:1px solid rgba(255,255,255,.1);flex-shrink:0;}
+  .sb-nav{display:flex;padding:0;flex-shrink:0;}
+  .sb-group{display:none;}
+  .sb-nav a{border-left:none;border-bottom:2px solid transparent;white-space:nowrap;}
+  .sb-nav a.active{border-left-color:transparent;border-bottom-color:var(--sidebar-hi);}
+  .sb-footer{display:none;}
+  .row1{grid-template-columns:repeat(2,1fr);}
+  .row2,.row3,.row4,.ai-grid-wrap,.chart-row2,.step-guide-body{grid-template-columns:1fr;}
+  .pchart{padding-left:92px;}
+  .prow-label{left:-92px;width:82px;font-size:11px;}
+  .hstat-flex{flex-direction:column;}
+  .hypo-q{font-size:16.5px;}
+  .hypo-banner{padding:16px 16px;}
+}
+</style></head><body>
+
+<div class="shell">
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-ic">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
+    </div>
+    <div><div class="brand">리워드 손익 감사</div><div class="sub">Starbucks Rewards</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-group">개요</div>
+    <a href="#top" class="active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>전체 요약</a>
+    <div class="sb-group">가설별 분석</div>
+    <a href="#h1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>H1 · Free rider</a>
+    <a href="#h2"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>H2 · 이윤구조</a>
+    <a href="#h3"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.6"/></svg>H3 · 타겟팅</a>
+    <div class="sb-group">결론</div>
+    <a href="#synthesis"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>종합 시사점</a>
+    <a href="#master-table"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>판정 테이블</a>
+  </nav>
+  <div class="sb-footer">
+    <b>데이터</b> Kaggle Starbucks Reward<br>
+    <b>표본</b> 완료 33,101건 (BOGO+Discount)<br>
+    <b>방법</b> χ²/Mann-Whitney · α=0.05<br>
+    <b>Free rider</b> 미열람 완료 + 늦은 열람
+  </div>
+</aside>
+
+<div class="main" id="top">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>리워드 손익 감사</h1>
+      <span class="exp-badge">가설검정 3건 · 액션플랜 3가지</span>
+    </div>
+    <span class="meta">AIFFEL 캡스톤 · H1·종합 서연 · H2 호성 · H3 유나</span>
+    <button class="btn-sm" onclick="window.print()">인쇄용 보기</button>
+  </div>
+
+  <div class="content">
+
+    <div class="row1">
+      <div class="kpi"><div class="kpi-lbl">분석 대상</div><div class="kpi-val">33,101건</div><div class="badge b-i">완료 BOGO+Discount</div></div>
+      <div class="kpi"><div class="kpi-lbl">전체 Free rider 비율</div><div class="kpi-val">29.71%</div><div class="badge b-r">9,834건</div></div>
+      <div class="kpi"><div class="kpi-lbl">최강 동인</div><div class="kpi-val">소셜 채널</div><div class="badge b-g">V≈0.35–0.38</div><div class="kpi-note">채널: web · email · mobile · <b>social</b></div></div>
+      <div class="kpi"><div class="kpi-lbl">오퍼타입 마진(중앙값)</div><div class="kpi-val">$13.90<span style="font-size:12px;color:var(--t4)"> vs </span>$9.30</div><div class="badge b-g">Discount 우위</div><div class="kpi-note">n=33,101 · r=0.222 · 평균 기준도 동일방향($17.25 vs $13.79)<br>*순이익 = 매출 − 리워드비용</div></div>
+      <div class="kpi"><div class="kpi-lbl">미등록 표본 수</div><div class="kpi-val">1,101건</div><div class="badge b-a">Redeemer 한정</div><div class="kpi-note">단순 프로필 미등록이 아니라, 프로필 미등록이면서 오퍼까지 사용(redeem)한 인스턴스 수</div></div>
+      <div class="kpi"><div class="kpi-lbl">등록여부 순이익(중앙값)</div><div class="kpi-val">6.1배</div><div class="badge b-g">r=−0.63</div><div class="kpi-note">등록 $12.03 vs 미등록 $1.98(중앙값) · 평균 기준 2.3배로 방향 동일</div></div>
+    </div>
+
+    <div class="callout glossary"><div>📖</div><div><b>용어</b> · <b>bogo</b> 특정 금액 구매 시 동일 상품 무료 제공 · <b>discount</b> 할인 쿠폰 · <b>informational</b> 리워드 없이 정보만 제공(본 분석 대상 아님) · <b>Free rider(무임승차)</b> 오퍼를 보기 전에 이미 구매 조건을 채운 고객</div></div>
+
+    <div class="section-label" id="overview-label">전체 요약</div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-num">1</div><div><div class="card-title">가설 판정 요약</div></div></div>
+      <div class="warn-list" id="verdictList"></div>
+    </div>
+
+    <!-- ============ H1 ============ -->
+    <div class="hypo-banner" id="h1"><div class="hypo-pill">H1</div><div class="hypo-cat">FREE RIDER 비용 누수</div><div class="hypo-q">Free rider에게 불필요한 리워드가 지급되는가?</div></div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-num">2</div><div><div class="card-title">직접 탐색해보기</div><div class="card-sub">조건을 선택하면 Free rider 비율과 오퍼 목록이 즉시 다시 계산됨 (오퍼 8개 원자료)</div></div></div>
+      <div class="filter-row">
+        <div class="filter-item"><label>오퍼타입</label><select id="f-type"><option value="all">전체</option><option value="bogo">bogo</option><option value="discount">discount</option></select></div>
+        <div class="filter-item"><label>난이도</label><select id="f-diff"><option value="all">전체</option><option value="5">5</option><option value="7">7</option><option value="10">10</option><option value="20">20</option></select></div>
+        <div class="filter-item"><label>소셜 채널</label><select id="f-social"><option value="all">전체</option><option value="1">있음</option><option value="0">없음</option></select></div>
+        <div class="filter-item"><label>web 채널</label><select id="f-web"><option value="all">전체</option><option value="1">있음</option><option value="0">없음</option></select></div>
+      </div>
+      <div class="explore-result">
+        <div class="explore-stat"><div class="kpi-lbl">선택된 조건의 Free rider 비율</div><div class="kpi-val" id="explore-rate" style="font-size:19px">29.71%</div><div class="note" id="explore-detail" style="margin-top:2px">9,834건 / 33,101건 · 오퍼 8개</div></div>
+        <div class="explore-bar-wrap"><div class="explore-track"><div class="explore-bar" id="explore-bar"></div><div class="explore-bar-label" id="explore-bar-label"></div></div></div>
+      </div>
+      <div class="tbl-wrap"><table id="offer-table">
+        <thead><tr><th>타입</th><th>난이도</th><th>web</th><th>email</th><th>mobile</th><th>social</th><th>n</th><th>Free rider</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="row3">
+      <div class="card">
+        <div class="card-hd"><div class="card-num">3</div><div><div class="card-title">H1-1. 오퍼타입별 Free rider 비율</div><div class="card-sub" id="h11-desc"></div></div></div>
+        <div class="tabs"><button class="active" id="h11-btn-all">전체</button><button id="h11-btn-d10">난이도=10 고정</button></div>
+        <div class="pchart" id="h11-chart"></div>
+        <div class="callout" id="h11-callout"><div id="h11-icon">ℹ️</div><div id="h11-text"></div></div>
+        <div class="hypo-quote">원 가설: <b>오퍼타입(BOGO/Discount)</b> 자체가 Free rider 비율에 영향을 줄 것이다.</div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-num">4</div><div><div class="card-title">H1-2. 난이도별 Free rider 비율</div><div class="card-sub">U자형 — 난이도×오퍼타입 상호작용</div></div></div>
+        <div class="pchart" id="h12-chart"></div>
+        <div class="callout"><div>⚠️</div><div>단조 증가가 아닌 <b>U자형</b>이라 원가설은 <b>기각</b>됨(χ²=2296.26, p&lt;0.001이나 해석 무효).</div></div>
+        <div class="hypo-quote">원 가설: 리워드 <b>난이도</b>가 높을수록 Free rider 비율이 단조 증가할 것이다.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-num">5</div><div><div class="card-title">H1-3. 채널별 Free rider 비율 (매칭 짝 비교)</div><div class="card-sub">오퍼타입·난이도 고정, 채널 유무만 다른 오퍼 직접 비교</div></div></div>
+      <div class="tabs">
+        <button class="active" id="h13-btn-pair1">bogo · 난이도5 · 소셜</button>
+        <button id="h13-btn-pair2">discount · 난이도10 · 소셜</button>
+        <button id="h13-btn-pair3">bogo · 난이도10 · web</button>
+      </div>
+      <div class="pchart" id="h13-chart"></div>
+      <p class="note" id="h13-note"></p>
+      <div class="hypo-quote" id="h13-hypo"></div>
+    </div>
+    <div class="callout" style="background:var(--green-bg);"><b>결론</b> — 효과크기: 소셜채널(0.367) &gt; web채널(0.141) &gt; 오퍼타입(난이도 고정, 0.045) &gt; 오퍼타입(전체, 0.006). 오퍼타입·난이도 자체는 Free rider 비율에 미미하거나 불안정한 영향만 주는 반면, 채널(특히 소셜) 유무가 Free rider를 줄이는 요인으로 확인됨.</div>
+
+    <!-- ============ H2 ============ -->
+    <div class="hypo-banner" id="h2"><div class="hypo-pill">H2</div><div class="hypo-cat">오퍼 별 이윤구조</div><div class="hypo-q">오퍼 종류 자체의 수익성이 다른가?</div></div>
+
+    <div class="row3">
+      <div class="card">
+        <div class="card-hd"><div class="card-num">6</div><div><div class="card-title">H2-1. BOGO 오퍼 순이익 — 기술통계</div><div class="card-sub">검정 없이 분포만 확인 (다이아몬드=평균)</div></div></div>
+        <div class="hstat-flex">
+          <div class="hstat-list">
+            <div class="hstat-row"><span>최솟값</span><b>$0.01</b></div>
+            <div class="hstat-row"><span>Q1</span><b>$3.97</b></div>
+            <div class="hstat-row"><span>중앙값</span><b>$9.30</b></div>
+            <div class="hstat-row"><span>Q3</span><b>$16.12</b></div>
+            <div class="hstat-row"><span>최댓값</span><b>$1,005.73</b><i>(극단치)</i></div>
+            <div class="hstat-row"><span>평균 ◆</span><b>$13.79</b></div>
+          </div>
+          <div class="chart-box short" style="flex:1;min-width:0;"><canvas id="c-h21"></canvas></div>
+        </div>
+        <div class="formula-note">순이익 = 매출 − 리워드비용</div>
+        <div class="hypo-quote">원 가설: BOGO 오퍼는 Discount보다 완료당 순이익이 낮을 것이다.</div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-num">7</div><div><div class="card-title">BOGO vs Discount 완료당 순이익</div><div class="card-sub">중앙값 검증, 평균값으로 방향 일치 확인</div></div></div>
+        <div class="chart-box short"><canvas id="c-h2cross"></canvas></div>
+        <div class="stat-line"><span class="stat-chip">n=<b>15,501/17,600</b></span><span class="stat-chip">중앙값 검정 Mann-Whitney p=<b>4.7e-266</b></span><span class="stat-chip">r=<b>0.222</b></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-num">8</div><div><div class="card-title">H2-2. Discount 오퍼 — Free rider 포함/제외</div><div class="card-sub">"마진 우위는 착시" 가설 검증(평균값 사용)</div></div></div>
+      <div class="chart-box short"><canvas id="c-h22"></canvas></div>
+      <div class="stat-line"><span class="stat-chip">n=<b>5,274/12,326</b></span><span class="stat-chip">Mann-Whitney p=<b>2.6e-52</b></span><span class="stat-chip">r=<b>−0.145</b></span></div>
+      <div class="hypo-quote">원 가설: Discount의 마진 우위는 Free rider 고객이 부풀린 착시일 것이다.</div>
+    </div>
+    <div class="callout" style="background:var(--green-bg);"><b>결론</b> — Free rider를 제외하면 평균이 $17.25→$16.29로 <b>오히려 하락</b>: Free rider는 마진을 부풀린 게 아니라 원래 씀씀이가 큰 고객군. "착시" 가설은 <b>기각</b>됨.</div>
+
+    <!-- ============ H3 ============ -->
+    <div class="hypo-banner" id="h3"><div class="hypo-pill">H3</div><div class="hypo-cat">TARGETING</div><div class="hypo-q">특정 고객군에 비효율적으로 리워드가 지급되는가?</div></div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-num">9</div><div><div class="card-title">사전 정보 - 프로필 유무와 오퍼 사용 인스턴스 비교</div><div class="card-sub">bogo+discount 인스턴스 기준(건수)</div></div></div>
+      <div class="toggle-row"><span style="font-size:12px;font-weight:600;color:var(--t2);">보기:</span><div class="switch"><button id="pc-basic" class="active">기본</button><button id="pc-split">오퍼타입별</button></div></div>
+      <div class="chart-box" id="pc-basic-box"><canvas id="c-precheck"></canvas></div>
+      <div id="pc-split-box" style="display:none">
+        <div class="chart-row2">
+          <div><div style="font-size:11.5px;font-weight:700;color:var(--green);margin-bottom:6px">등록 (자체 축)</div><div class="chart-box short"><canvas id="c-precheck-reg"></canvas></div></div>
+          <div><div style="font-size:11.5px;font-weight:700;color:var(--brown);margin-bottom:6px">미등록 (자체 축)</div><div class="chart-box short"><canvas id="c-precheck-un"></canvas></div></div>
+        </div>
+        <div class="aside-note">완료 기준 bogo 401건·discount 700건 — 통계 분석에 쓰기 충분한 표본 크기.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-num">10</div><div><div class="card-title">오퍼 사용 인스턴스 한건당 순이익 비교 — 프로필 등록 vs 미등록</div><div class="card-sub">박스플롯 + 검정통계, 다이아몬드=평균</div></div></div>
+      <div class="tabs"><button class="active" data-view="all">전체</button><button data-view="bogo">bogo만</button><button data-view="discount">discount만</button><button data-view="excl">Free rider 제외</button></div>
+      <div class="chart-box tall"><canvas id="c-h31"></canvas></div>
+      <div class="stat-line" id="h31-stats"></div>
+      <div class="hypo-quote" id="h31-hypo"></div>
+      <div class="callout" style="background:var(--green-bg);">4가지 조건 모두 등록이 유의하게 높고 효과크기(r)도 0.6대로 거의 동일 — 착시 아닌 견고한 결과.</div>
+    </div>
+
+    <div class="row3">
+      <div class="card">
+        <div class="card-hd"><div class="card-num">11</div><div><div class="card-title">오퍼 사용 인스턴스 중 Free rider 비율 비교 — 프로필 등록 vs 미등록</div><div class="card-sub">설명가설: "미등록의 낮은 순이익은 Free rider 때문"</div></div></div>
+        <div class="legend">
+          <div class="legend-item"><span class="ldot" style="background:#1D4533"></span>등록·정상</div>
+          <div class="legend-item"><span class="ldot" style="background:#7FA98F"></span>등록·Free rider</div>
+          <div class="legend-item"><span class="ldot" style="background:#5E3122"></span>미등록·정상</div>
+          <div class="legend-item"><span class="ldot" style="background:#C99672"></span>미등록·Free rider</div>
+        </div>
+        <div class="chart-box short"><canvas id="c-h32"></canvas></div>
+        <div class="hypo-quote">원 가설: 미등록 고객의 낮은 순이익은 Free rider 비율이 높기 때문일 것이다.</div>
+        <div class="cond-box-nested">
+          <div class="cond-box-nested-title">설명가설 성립 조건 체크</div>
+          <div class="cond-list">
+            <div class="cond"><span class="cond-mark">✕</span><div><b>설명가설 성립 조건1</b> — 미등록이 Free rider 비율 더 높아야 성립 → <b>15.3%&lt;30.2%로 더 낮음</b> (기각)</div></div>
+            <div class="cond"><span class="cond-mark warn">⚠</span><div><b>설명가설 성립 조건2</b> — 등록군은 Free rider 쪽이 오히려 <b>금액이 큼</b>(p&lt;0.001) · 미등록군은 차이 없음(p=0.728) (기각, 방향도 다름)</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-num">12</div><div><div class="card-title">Free rider 여부별 순이익 중앙값 비교 — 프로필 등록 vs 미등록</div><div class="card-sub">중앙값 기준, 조건②까지 확인</div></div></div>
+        <div class="chart-box short"><canvas id="c-h32b"></canvas></div>
+        <div class="hypo-quote">원 가설: Free rider 고객은 정상 완료 고객보다 결제 금액이 낮을 것이다.</div>
+      </div>
+    </div>
+    <div class="callout" style="background:var(--green-bg);"><b>결론</b> — Free rider 고객은 원래 씀씀이가 큰 사람들. 미등록 그룹은 Free rider든 아니든 그냥 금액이 작다 — 앱에 진심이지 않은 고객군이라 오퍼 자체에 영향을 안 받는 것으로 해석.</div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-num">13</div><div><div class="card-title">탐색적 분석 (참고용)</div><div class="card-sub">사전 근거 없이 살펴본 4개 축 — income·age가 상대적으로 뚜렷한 신호</div></div></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>축</th><th>순이익 관계</th><th>Free rider 관계</th></tr></thead>
+        <tbody>
+          <tr><td><b>income</b></td><td style="background:var(--peach);color:#3A2314;font-weight:700;">ε²=0.3685 (큼)</td><td>V=0.0624 (작음)</td></tr>
+          <tr><td><b>age</b></td><td style="background:var(--peach);color:#3A2314;font-weight:700;">ρ=0.2296 (중간)</td><td>r=0.0207 (거의없음)</td></tr>
+          <tr><td>gender</td><td>r=0.1930 (작음~중간)</td><td>V=0.0317 (작음)</td></tr>
+          <tr><td>membership_days</td><td>ρ=−0.0205 (거의없음)</td><td>r=−0.0298 (거의없음)</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <!-- ============ SYNTHESIS ============ -->
+    <div class="section-label" id="synthesis">종합 시사점 — 그래서 무엇을 해야 하는가</div>
+
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">리워드 프로그램 Profit 증대 액션 플랜</div></div></div>
+
+      <div class="plan-item">
+        <div class="plan-hd"><div class="plan-num">1</div><div class="plan-title">타겟팅 재조정</div></div>
+        <div class="plan-sub">"보낼 사람을 다시 고른다"</div>
+        <div class="plan-bullets">
+          <div class="plan-bullet">프로필 미등록 고객(2,175명) → 저비용 오퍼로 전환</div>
+          <div class="plan-bullet-sub">완료당 순이익 1/7 수준 (<b>$1.58</b> vs <b>$10.79</b>)</div>
+          <div class="plan-bullet">저소득·저연령층 → 저난이도 오퍼 우선 배정</div>
+          <div class="plan-bullet-sub">소득 하위군 순이익, 상위군의 1/4 수준 (<b>$4.17</b> vs <b>$18.62</b>)</div>
+        </div>
+        <div class="plan-why"><b>Why #1</b> : 오퍼 재설계 불필요, 발송 대상만 조정 → 즉시 실행 가능 + 최대 효과</div>
+      </div>
+
+      <div class="plan-item">
+        <div class="plan-hd"><div class="plan-num">2</div><div class="plan-title">채널 보완 (Social 채널 추가)</div></div>
+        <div class="plan-sub">"보낼 채널을 정비한다"</div>
+        <div class="plan-bullets">
+          <div class="plan-bullet">Social 채널 없는 오퍼 → free-rider 비율 <b>40.8%</b></div>
+          <div class="plan-bullet">Social 채널 있는 오퍼 → free-rider 비율 <b>4.7%</b></div>
+          <div class="plan-bullet">잠재 절감 효과: 전체 이익의 <b>5.9%</b> (<b>$26,652</b>)</div>
+        </div>
+        <div class="plan-why"><b>Why #2</b> : 오퍼 조건은 그대로, 노출 방식만 개선 → 낮은 리스크 + 검증된 효과</div>
+      </div>
+
+      <div class="plan-item">
+        <div class="plan-hd"><div class="plan-num">3</div><div class="plan-title">오퍼 포트폴리오 조정 (Discount 비중 확대)</div></div>
+        <div class="plan-sub">"보낼 오퍼 구성을 바꾼다"</div>
+        <div class="plan-bullets">
+          <div class="plan-bullet">Discount 완료당 순이익, Bogo 대비 <b>1.6배</b> (<b>$12.68</b> vs <b>$8.09</b>)</div>
+          <div class="plan-bullet">Free-rider 제외해도 우위 유지 → 착시 아닌 견고한 결과</div>
+        </div>
+        <div class="plan-why"><b>Why #3</b> : 포트폴리오 재설계는 리드타임 필요, 채널 정비(#2) 선행 시 효과 극대화</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">실행 로드맵</div></div></div>
+      <div class="plan-roadmap">[Now]  타겟팅 룰 조정  →  [Next]  채널 보완  →  [Then]  오퍼 포트폴리오 개편
+       (즉시 가능)          (인프라 정비)          (캠페인 재설계)</div>
+      <div class="plan-principle"><b>원칙</b>: 효과 크고 실행 쉬운 것부터 → 되돌리기 어려운 재설계는 마지막에</div>
+    </div>
+
+    <div class="card" id="master-table">
+      <div class="card-hd"><div class="card-num">16</div><div><div class="card-title">가설 검증 판정 테이블</div><div class="card-sub">그룹A/B · 효과크기 · p-value · n · 판정 — 전체 15개 하위검정</div></div></div>
+      <div class="tbl-wrap"><table id="decTable"></table></div>
+    </div>
+
+    <div class="step-guide">
+      <div class="step-guide-hd">
+        <div class="step-guide-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+        <div><div class="step-guide-title">이 대시보드 읽는 법</div><div class="step-guide-sub">판정 흐름 · 인터랙션 요소 · 팀 논의 질문</div></div>
+      </div>
+      <div class="step-guide-body">
+        <div>
+          <div class="step-col-title">판정 흐름</div>
+          <div class="step-flow">
+            <div class="step-flow-item"><div class="step-fn">H1</div><div class="step-ft"><b>채널</b>이 Free rider를 가장 크게 좌우함</div></div>
+            <div class="step-flow-item"><div class="step-fn">H2</div><div class="step-ft"><b>Discount</b> 마진 우위는 착시가 아니라 실질적</div></div>
+            <div class="step-flow-item"><div class="step-fn">H3</div><div class="step-ft"><b>미등록</b> 고객은 Free rider가 아니라 무관심이 원인</div></div>
+            <div class="step-flow-item"><div class="step-fn">→</div><div class="step-ft">채널·세그먼트 우선 개입으로 <b>종합</b></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="step-col-title">인터랙션 요소</div>
+          <div class="step-iact">
+            <div class="step-iact-item"><b>카드 2</b> 필터로 오퍼 8개를 직접 조합 탐색</div>
+            <div class="step-iact-item"><b>카드 3·5·10</b> 탭으로 비교 조건 전환</div>
+            <div class="step-iact-item"><b>카드 9</b> 토글로 오퍼타입별 축 분리</div>
+          </div>
+        </div>
+        <div>
+          <div class="step-col-title">팀 논의 질문</div>
+          <div class="step-q">
+            <div class="step-q-item"><div class="step-q-txt">채널 예산을 소셜 우선으로 재배분한다면 어느 오퍼부터?</div></div>
+            <div class="step-q-item"><div class="step-q-txt">미등록 고객 등록 유도 캠페인은 언제 시작할까?</div></div>
+            <div class="step-q-item"><div class="step-q-txt">Discount 확대 시 채널 보완 계획을 함께 세울까?</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <span>Starbucks App Customer Reward Program Data (Kaggle) 기반 · 완료된 BOGO+Discount 인스턴스 33,101건</span>
+      <span>초안 · 팀 논의 후 최종 확정 예정</span>
+    </footer>
+
+  </div>
+</div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+(function(){
+"use strict";
+var C = {green:'#1D4533',greenL:'#3F7A5C',greenBg:'#E1EEE5',brown:'#5E3122',brownL:'#96654C',brownBg:'#F3E4D8',peach:'#F9D2BA',amber:'#8A6100',amberBg:'#F6EFDE',red:'#A93A2C',redBg:'#FAE7E2',t1:'#20261B',t2:'#4B5245',t3:'#707765',t4:'#93998A',grid:'#E9EEE3',card:'#FFFDF8'};
+var hasChart = typeof Chart !== 'undefined';
+if(hasChart){
+  try{
+    Chart.register(ChartDataLabels);
+    Chart.defaults.font.family = "'IBM Plex Sans KR', sans-serif";
+    Chart.defaults.color = C.t2;
+    Chart.defaults.plugins.datalabels.display = false;
+  }catch(e){ hasChart=false; console.warn('Chart.js init failed', e); }
+}
+
+var tooltip = document.getElementById('tooltip');
+function bindTooltip(el){
+  el.addEventListener('mousemove', function(e){
+    var parts = (el.getAttribute('data-tt')||'').split('|');
+    tooltip.innerHTML = '<div>'+parts[0]+'</div><div class="tt-value">'+(parts[1]||'')+'</div><div>'+(parts[2]||'')+'</div>';
+    tooltip.style.left = e.clientX+'px'; tooltip.style.top = e.clientY+'px';
+    tooltip.classList.add('show');
+  });
+  el.addEventListener('mouseleave', function(){ tooltip.classList.remove('show'); });
+}
+
+/* ============ verdict list ============ */
+var VERDICTS = [
+  {cls:'warn', icon:'H1-1', title:'오퍼타입 효과 — 조건부로만 나타남', desc:'전체는 비유의(V=0.006), 난이도10 고정시만 V=0.045', badge:'불안정'},
+  {cls:'error', icon:'H1-2', title:'난이도 U자형 — 원가설 기각', desc:'χ²=2296.3, p<0.001이나 오퍼타입과 완전 confound, 단조패턴 아님', badge:'해석무효'},
+  {cls:'ok', icon:'H1-3', title:'채널(소셜) 효과 — 가장 신뢰할 수 있는 동인', desc:'매칭 3짝 모두 V=0.14~0.38, 정의 보정 후에도 견고', badge:'강한신호'},
+  {cls:'ok', icon:'H2', title:'Discount 마진우위 — 착시 아님', desc:'Free rider 제외해도 평균 하락(→ $16.29), r=0.222로 유의', badge:'채택'},
+  {cls:'ok', icon:'H3-1', title:'등록여부 순이익 격차 — 4조건 모두 견고', desc:'전체/bogo/discount/제외 모두 r=0.6대, p<0.001', badge:'강한신호'},
+  {cls:'error', icon:'H3-2', title:'Free rider 설명가설 — 두 조건 모두 기각', desc:'미등록군 Free rider 비율이 더 낮고(15.3%<30.2%), 금액도 차이 없음(p=0.728)', badge:'기각'},
+  {cls:'info', icon:'참고', title:'income·age — 다음 라운드 확증 후보', desc:'ε²=0.3685, ρ=0.2296로 다른 축보다 뚜렷하나 이번엔 미검증', badge:'참고'}
+];
+var vIcon = {ok:'✅', warn:'—', error:'✕', info:'ℹ️'};
+var vBadgeStyle = {ok:'background:var(--green-bg);color:var(--green)', warn:'background:var(--amber-bg);color:var(--amber)', error:'background:var(--red-bg);color:var(--red)', info:'background:var(--info-bg);color:var(--info-t)'};
+var vList = document.getElementById('verdictList');
+VERDICTS.forEach(function(v){
+  var div = document.createElement('div'); div.className = 'warn-item '+v.cls;
+  div.innerHTML = '<span class="warn-icon">'+vIcon[v.cls]+'</span><div class="warn-body"><div class="warn-title">['+v.icon+'] '+v.title+'</div><div class="warn-desc">'+v.desc+'</div></div><span class="warn-badge" style="'+vBadgeStyle[v.cls]+'">'+v.badge+'</span>';
+  vList.appendChild(div);
+});
+
+/* ============ H1 explorer ============ */
+var OFFERS = [
+  {type:'discount',difficulty:20,web:1,email:1,mobile:0,social:0,n:3313,fr:2013},
+  {type:'bogo',difficulty:5,web:1,email:1,mobile:1,social:0,n:4303,fr:2197},
+  {type:'discount',difficulty:10,web:1,email:1,mobile:1,social:0,n:3955,fr:1853},
+  {type:'bogo',difficulty:10,web:0,email:1,mobile:1,social:1,n:3635,fr:1053},
+  {type:'bogo',difficulty:5,web:1,email:1,mobile:1,social:1,n:4262,fr:748},
+  {type:'bogo',difficulty:10,web:1,email:1,mobile:1,social:1,n:3301,fr:562},
+  {type:'discount',difficulty:7,web:1,email:1,mobile:1,social:1,n:5102,fr:754},
+  {type:'discount',difficulty:10,web:1,email:1,mobile:1,social:1,n:5230,fr:654}
+];
+var tbody = document.querySelector('#offer-table tbody');
+OFFERS.forEach(function(o){
+  var tr = document.createElement('tr');
+  var rate = (o.fr/o.n*100).toFixed(2)+'%';
+  tr.innerHTML = '<td>'+o.type+'</td><td class="num">'+o.difficulty+'</td>'+
+    ['web','email','mobile','social'].map(function(k){return '<td>'+(o[k]?'<span class="chip-dot" style="background:'+C.green+'"></span>':'—')+'</td>';}).join('')+
+    '<td class="num">'+o.n.toLocaleString()+'</td><td class="num">'+rate+'</td>';
+  tbody.appendChild(tr);
+});
+function fmatches(o,f){
+  if(f.type!=='all' && o.type!==f.type) return false;
+  if(f.diff!=='all' && String(o.difficulty)!==f.diff) return false;
+  if(f.social!=='all' && String(o.social)!==f.social) return false;
+  if(f.web!=='all' && String(o.web)!==f.web) return false;
+  return true;
+}
+function recompute(){
+  var f = {type:document.getElementById('f-type').value, diff:document.getElementById('f-diff').value, social:document.getElementById('f-social').value, web:document.getElementById('f-web').value};
+  var totalN=0, totalFr=0, cnt=0;
+  OFFERS.forEach(function(o,idx){
+    var row = tbody.children[idx];
+    if(fmatches(o,f)){ row.classList.remove('dim'); totalN+=o.n; totalFr+=o.fr; cnt++; } else { row.classList.add('dim'); }
+  });
+  var rate = totalN>0 ? (totalFr/totalN*100) : 0;
+  document.getElementById('explore-rate').textContent = totalN>0 ? rate.toFixed(2)+'%' : '해당 없음';
+  document.getElementById('explore-detail').textContent = totalN.toLocaleString()+'건 중 '+totalFr.toLocaleString()+'건 · 오퍼 '+cnt+'개';
+  var bw = Math.min(rate/65*100,100);
+  document.getElementById('explore-bar').style.width = bw+'%';
+  document.getElementById('explore-bar-label').textContent = totalN>0 ? rate.toFixed(2)+'%' : '-';
+}
+['f-type','f-diff','f-social','f-web'].forEach(function(id){ document.getElementById(id).addEventListener('change', recompute); });
+recompute();
+
+/* ============ generic proportion-bar builder ============ */
+/* rebuilds DOM only when row count changes; otherwise updates existing
+   nodes in place so CSS transition:width on .pbar actually animates
+   between tab/toggle states instead of a destroy-recreate snap. */
+function buildPBars(container, rows, opts){
+  opts = opts || {};
+  var max = opts.max || Math.max.apply(null, rows.map(function(r){return r.value;}))*1.15;
+  var existing = container.querySelectorAll(':scope > .prow');
+  var canUpdate = existing.length === rows.length && container.getAttribute('data-built') === '1';
+  if(!canUpdate){
+    container.innerHTML = '';
+    container.setAttribute('data-built','1');
+    rows.forEach(function(r,i){
+      var row = document.createElement('div'); row.className='prow';
+      var label = document.createElement('div'); label.className='prow-label'; label.innerHTML=r.label; row.appendChild(label);
+      var track = document.createElement('div'); track.className='ptrack'; track.setAttribute('data-tt', r.tt || (r.label+'|'+r.display));
+      if(i===0 && opts.ticks){
+        var gw = document.createElement('div'); gw.className='pgrid';
+        opts.ticks.forEach(function(t){ var gl=document.createElement('div'); gl.className='pgridline'; gl.style.left=t.pct+'%'; var sp=document.createElement('span'); sp.textContent=t.label; gl.appendChild(sp); gw.appendChild(gl); });
+        track.appendChild(gw);
+      }
+      var w = Math.min(r.value/max*100,100);
+      var bar = document.createElement('div'); bar.className='pbar'; bar.style.width='0%'; bar.style.background=r.color||C.green;
+      track.appendChild(bar);
+      if(r.ci){ [r.ci[0],r.ci[1]].forEach(function(v){ var line=document.createElement('div'); line.className='pci'; line.style.left=Math.min(v/max*100,100)+'%'; var c1=document.createElement('i'); c1.style.top='-2px'; var c2=document.createElement('i'); c2.style.bottom='-2px'; line.appendChild(c1); line.appendChild(c2); track.appendChild(line); }); }
+      var val = document.createElement('div'); val.className='pval'+(w>78?' inside':''); val.style.left = w>78 ? 'calc('+w+'% - 8px)' : 'calc('+w+'% + 8px)';
+      val.textContent = r.display; track.appendChild(val);
+      row.appendChild(track); container.appendChild(row);
+      bindTooltip(track);
+      requestAnimationFrame(function(){ bar.style.width = w+'%'; });
+    });
+  } else {
+    rows.forEach(function(r,i){
+      var row = existing[i];
+      var label = row.querySelector('.prow-label'); label.innerHTML = r.label;
+      var track = row.querySelector('.ptrack');
+      track.setAttribute('data-tt', r.tt || (r.label+'|'+r.display));
+      track.querySelectorAll('.pci').forEach(function(el){ el.remove(); });
+      var w = Math.min(r.value/max*100,100);
+      var bar = track.querySelector('.pbar');
+      bar.style.background = r.color||C.green;
+      bar.style.width = w+'%';
+      if(r.ci){ [r.ci[0],r.ci[1]].forEach(function(v){ var line=document.createElement('div'); line.className='pci'; line.style.left=Math.min(v/max*100,100)+'%'; var c1=document.createElement('i'); c1.style.top='-2px'; var c2=document.createElement('i'); c2.style.bottom='-2px'; line.appendChild(c1); line.appendChild(c2); track.appendChild(line); }); }
+      var val = track.querySelector('.pval');
+      val.className = 'pval'+(w>78?' inside':'');
+      val.style.left = w>78 ? 'calc('+w+'% - 8px)' : 'calc('+w+'% + 8px)';
+      val.textContent = r.display;
+    });
+  }
+}
+
+/* ============ H1-1 toggle ============ */
+var H11 = {
+  all:{ desc:'완료된 bogo·discount 전체 33,101건 기준',
+    rows:[{label:'bogo',value:29.42,display:'29.42%',ci:[28.71,30.14],color:C.green,tt:'bogo|29.42%|95% CI 28.71–30.14% · n=15,501'},
+          {label:'discount',value:29.97,display:'29.97%',ci:[29.29,30.65],color:C.brown,tt:'discount|29.97%|95% CI 29.29–30.65% · n=17,600'}],
+    icon:'ℹ️', text:'p=0.281, V=0.006 — <b>유의하지 않음</b>. 오퍼타입 자체로는 설명 안 됨.'},
+  d10:{ desc:'bogo·discount 동시 존재 구간(난이도=10, n=16,121) 재비교',
+    rows:[{label:'bogo(d10)',value:23.28,display:'23.28%',ci:[22.30,24.29],color:C.green,tt:'bogo(d10)|23.28%|95% CI 22.30–24.29% · n=6,936'},
+          {label:'discount(d10)',value:27.29,display:'27.29%',ci:[26.39,28.21],color:C.brown,tt:'discount(d10)|27.29%|95% CI 26.39–28.21% · n=9,185'}],
+    icon:'⚠️', text:'p&lt;0.001로 재등장하나 효과크기(V=0.045)는 여전히 작음.'}
+};
+function renderH11(state){
+  var d = H11[state];
+  document.getElementById('h11-desc').textContent = d.desc;
+  buildPBars(document.getElementById('h11-chart'), d.rows, {max:35, ticks:[{pct:0,label:'0'},{pct:20,label:'7'},{pct:40,label:'14'},{pct:60,label:'21'},{pct:80,label:'28'},{pct:100,label:'35'}]});
+  document.getElementById('h11-icon').textContent = d.icon;
+  document.getElementById('h11-text').innerHTML = d.text;
+  document.getElementById('h11-btn-all').classList.toggle('active', state==='all');
+  document.getElementById('h11-btn-d10').classList.toggle('active', state==='d10');
+}
+document.getElementById('h11-btn-all').onclick=function(){renderH11('all');};
+document.getElementById('h11-btn-d10').onclick=function(){renderH11('d10');};
+renderH11('all');
+
+/* ============ H1-2 ============ */
+buildPBars(document.getElementById('h12-chart'), [
+  {label:'난이도 5', value:34.39, display:'34.39%', color:C.greenL, tt:'난이도5|34.39%|n=8,565 · bogo전용'},
+  {label:'난이도 7', value:14.78, display:'14.78%', color:C.green, tt:'난이도7|14.78%|n=5,102 · discount전용'},
+  {label:'난이도 10', value:25.57, display:'25.57%', color:C.greenL, tt:'난이도10|25.57%|n=16,121 · 혼재'},
+  {label:'난이도 20', value:60.76, display:'60.76%', color:C.brown, tt:'난이도20|60.76%|n=3,313 · discount전용,social없음'}
+], {max:70, ticks:[{pct:0,label:'0'},{pct:25,label:'17.5'},{pct:50,label:'35'},{pct:75,label:'52.5'},{pct:100,label:'70'}]});
+
+/* ============ H1-3 tabs ============ */
+var H13 = {
+  pair1:{rows:[{label:'소셜없음',value:51.06,display:'51.06%',color:C.brown,tt:'소셜없음|51.06%|95% CI 49.56–52.55% · n=4,303'},{label:'소셜있음',value:17.55,display:'17.55%',color:C.green,tt:'소셜있음|17.55%|95% CI 16.44–18.72% · n=4,262'}], note:'p&lt;0.001, V=0.353', hypo:'소셜 채널이 있으면 Free rider 비율이 낮아질 것이다 (bogo·난이도5)'},
+  pair2:{rows:[{label:'소셜없음',value:46.85,display:'46.85%',color:C.brown,tt:'소셜없음|46.85%|95% CI 45.30–48.41% · n=3,955'},{label:'소셜있음',value:12.50,display:'12.50%',color:C.green,tt:'소셜있음|12.50%|95% CI 11.64–13.43% · n=5,230'}], note:'p&lt;0.001, V=0.382', hypo:'소셜 채널이 있으면 Free rider 비율이 낮아질 것이다 (discount·난이도10)'},
+  pair3:{rows:[{label:'web없음',value:28.97,display:'28.97%',color:C.brown,tt:'web없음|28.97%|95% CI 27.52–30.46% · n=3,635'},{label:'web있음',value:17.03,display:'17.03%',color:C.green,tt:'web있음|17.03%|95% CI 15.78–18.35% · n=3,301'}], note:'p&lt;0.001, V=0.141 (소셜 대비 작음)', hypo:'web 채널이 있으면 Free rider 비율이 낮아질 것이다 (bogo·난이도10)'}
+};
+function renderH13(p){
+  var d = H13[p];
+  buildPBars(document.getElementById('h13-chart'), d.rows, {max:60, ticks:[{pct:0,label:'0'},{pct:25,label:'15'},{pct:50,label:'30'},{pct:75,label:'45'},{pct:100,label:'60'}]});
+  document.getElementById('h13-note').innerHTML = d.note;
+  document.getElementById('h13-hypo').innerHTML = '원 가설: '+d.hypo+'.';
+  ['pair1','pair2','pair3'].forEach(function(k){ document.getElementById('h13-btn-'+k).classList.toggle('active', k===p); });
+}
+['pair1','pair2','pair3'].forEach(function(k){ document.getElementById('h13-btn-'+k).onclick=function(){renderH13(k);}; });
+renderH13('pair1');
+
+/* ============ master decision table ============ */
+var MASTER = [
+  {h:'H1-1(전체)',metric:'Free rider 비율',a:'bogo 29.42%',b:'discount 29.97%',eff:'V=0.006',p:'0.281',n:'33,101',v:'info',vl:'신호없음'},
+  {h:'H1-1(d10)',metric:'Free rider 비율',a:'bogo 23.28%',b:'discount 27.29%',eff:'V=0.045',p:'<0.001',n:'16,121',v:'warn',vl:'약한신호'},
+  {h:'H1-2',metric:'Free rider 비율(U자형)',a:'최저 14.78%(d7)',b:'최고 60.76%(d20)',eff:'CA Z=30.57',p:'<0.001',n:'33,101',v:'error',vl:'해석무효'},
+  {h:'H1-3(bogo·d5·소셜)',metric:'Free rider 비율',a:'없음 51.06%',b:'있음 17.55%',eff:'V=0.353',p:'<0.001',n:'8,565',v:'ok',vl:'강한신호'},
+  {h:'H1-3(discount·d10·소셜)',metric:'Free rider 비율',a:'없음 46.85%',b:'있음 12.50%',eff:'V=0.382',p:'<0.001',n:'9,185',v:'ok',vl:'강한신호'},
+  {h:'H1-3(bogo·d10·web)',metric:'Free rider 비율',a:'없음 28.97%',b:'있음 17.03%',eff:'V=0.141',p:'<0.001',n:'6,936',v:'warn',vl:'중간신호'},
+  {h:'H2-1(BOGO)',metric:'순이익 기술통계',a:'평균 $13.79',b:'중앙값 $9.30',eff:'—',p:'검정없음',n:'15,501',v:'info',vl:'참고'},
+  {h:'H2-2(Discount)',metric:'순이익 포함/제외',a:'포함 $17.25',b:'제외 $16.29',eff:'r=−0.145',p:'2.6e-52',n:'17,600',v:'ok',vl:'착시아님'},
+  {h:'H2 교차검증',metric:'순이익',a:'BOGO $13.79',b:'Discount $17.25',eff:'r=0.222',p:'4.7e-266',n:'33,101',v:'ok',vl:'강한신호'},
+  {h:'H3-1(전체)',metric:'완료당 순이익',a:'등록 $15.93',b:'미등록 $6.96',eff:'r=−0.631',p:'<0.001',n:'33,101',v:'ok',vl:'강한신호'},
+  {h:'H3-1(bogo)',metric:'완료당 순이익',a:'등록 $13.97',b:'미등록 $6.69',eff:'r=−0.607',p:'<0.001',n:'15,501',v:'ok',vl:'강한신호'},
+  {h:'H3-1(discount)',metric:'완료당 순이익',a:'등록 $17.67',b:'미등록 $7.12',eff:'r=−0.672',p:'<0.001',n:'17,600',v:'ok',vl:'강한신호'},
+  {h:'H3-1(제외)',metric:'완료당 순이익',a:'등록 $15.54',b:'미등록 $7.30',eff:'r=−0.613',p:'<0.001',n:'23,267',v:'ok',vl:'강한신호'},
+  {h:'H3-2',metric:'Free rider 비율',a:'등록 30.21%',b:'미등록 15.26%',eff:'V=0.0585',p:'<0.001',n:'33,101',v:'warn',vl:'예상과 반대'},
+  {h:'H3-2b',metric:'Free rider 금액(중앙값)',a:'등록군 유의(p<.001)',b:'미등록군 n.s.(p=.728)',eff:'r=0.085/—',p:'혼재',n:'—',v:'error',vl:'설명가설기각'}
+];
+var t = document.getElementById('decTable');
+t.innerHTML = '<thead><tr><th>가설</th><th>지표</th><th>그룹A</th><th>그룹B</th><th>효과크기</th><th>p-value</th><th>n</th><th>판정</th></tr></thead><tbody>'+
+  MASTER.map(function(r){
+    return '<tr><td style="color:var(--t1);font-weight:600">'+r.h+'</td><td>'+r.metric+'</td><td>'+r.a+'</td><td>'+r.b+'</td><td class="num">'+r.eff+'</td><td class="num">'+r.p+'</td><td class="num">'+r.n+'</td><td><span class="verdict-badge" style="'+badgeCls2(r.v)+'">'+r.vl+'</span></td></tr>';
+  }).join('')+'</tbody>';
+function badgeCls2(v){
+  if(v==='ok') return 'background:var(--green-bg);color:var(--green)';
+  if(v==='warn') return 'background:var(--amber-bg);color:var(--amber)';
+  if(v==='error') return 'background:var(--red-bg);color:var(--red)';
+  return 'background:var(--info-bg);color:var(--info-t)';
+}
+
+/* ============ Chart.js-dependent charts ============ */
+if(hasChart){ try{
+
+
+new Chart(document.getElementById('c-h2cross'), {
+  type:'bar',
+  data:{labels:['중앙값','평균'],datasets:[
+    {label:'BOGO',data:[9.30,13.79],backgroundColor:[C.brown,C.brown+'80'],borderRadius:5,maxBarThickness:42},
+    {label:'Discount',data:[13.90,17.25],backgroundColor:[C.green,C.green+'80'],borderRadius:5,maxBarThickness:42}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}},datalabels:{display:true,anchor:'end',align:'top',color:C.t1,font:{weight:700,size:10.5},formatter:function(v){return '$'+v.toFixed(2);}}},
+    scales:{y:{beginAtZero:true,max:20,grid:{color:C.grid},ticks:{callback:function(v){return '$'+v;}}},x:{grid:{display:false}}}}
+});
+
+new Chart(document.getElementById('c-h21'), {
+  type:'boxplot',
+  data:{labels:['BOGO'],datasets:[{data:[{min:0.01,q1:3.97,median:9.30,mean:13.79,q3:16.12,max:16.12}],backgroundColor:C.greenBg,borderColor:C.green,borderWidth:2,itemRadius:0,meanBackgroundColor:C.green,meanRadius:6,meanStyle:'rectRot',barPercentage:0.4,categoryPercentage:0.5}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{y:{beginAtZero:true,min:0,max:20,grid:{color:C.grid},ticks:{stepSize:5,callback:function(v){return '$'+v;}}},x:{grid:{display:false}}}}
+});
+
+new Chart(document.getElementById('c-h22'), {
+  type:'bar',
+  data:{labels:['전체(포함) 평균','Free rider 제외 평균'],datasets:[{data:[17.25,16.29],backgroundColor:[C.brown,C.green],borderRadius:5,maxBarThickness:60}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},datalabels:{display:true,anchor:'end',align:'end',color:C.t1,font:{weight:700,size:11},formatter:function(v){return '$'+v.toFixed(2);}}},
+    scales:{x:{beginAtZero:true,max:20,grid:{color:C.grid},ticks:{callback:function(v){return '$'+v;}}},y:{grid:{display:false}}}}
+});
+
+var pcLabels=['등록-완료','등록-미완료','미등록-완료','미등록-미완료'];
+new Chart(document.getElementById('c-precheck'), {
+  type:'bar', data:{labels:pcLabels,datasets:[{data:[32000,21201,1101,6740],backgroundColor:[C.green,C.green,C.brown,C.brown],borderRadius:5,maxBarThickness:56}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:true,anchor:'end',align:'top',color:C.t1,font:{weight:700,size:10.5},formatter:function(v){return v.toLocaleString();}}},
+    scales:{y:{beginAtZero:true,grid:{color:C.grid},ticks:{callback:function(v){return v.toLocaleString();}}},x:{grid:{display:false}}}}
+});
+var chartPreReg=null, chartPreUn=null;
+function renderSplitCharts(){
+  /* destroy and recreate every time this view is shown so the entrance
+     animation replays on every toggle, not just the first time */
+  if(chartPreReg){ chartPreReg.destroy(); chartPreReg=null; }
+  if(chartPreUn){ chartPreUn.destroy(); chartPreUn=null; }
+  chartPreReg = new Chart(document.getElementById('c-precheck-reg'), {type:'bar',data:{labels:['bogo-완료','discount-완료','bogo-미완료','discount-미완료'],datasets:[{data:[15100,16900,11437,9764],backgroundColor:C.green,borderRadius:4,maxBarThickness:34}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:true,anchor:'end',align:'top',color:C.t1,font:{weight:700,size:10},formatter:function(v){return v.toLocaleString();}}},
+      scales:{y:{beginAtZero:true,grid:{color:C.grid},ticks:{font:{size:9.5},callback:function(v){return v.toLocaleString();}}},x:{grid:{display:false},ticks:{font:{size:9.5}}}}}});
+  chartPreUn = new Chart(document.getElementById('c-precheck-un'), {type:'bar',data:{labels:['bogo-완료','discount-완료','bogo-미완료','discount-미완료'],datasets:[{data:[401,700,3561,3179],backgroundColor:C.brown,borderRadius:4,maxBarThickness:34}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:true,anchor:'end',align:'top',color:C.t1,font:{weight:700,size:10},formatter:function(v){return v.toLocaleString();}}},
+      scales:{y:{beginAtZero:true,grid:{color:C.grid},ticks:{font:{size:9.5},callback:function(v){return v.toLocaleString();}}},x:{grid:{display:false},ticks:{font:{size:9.5}}}}}});
+}
+document.getElementById('pc-basic').onclick=function(){document.getElementById('pc-basic').classList.add('active');document.getElementById('pc-split').classList.remove('active');document.getElementById('pc-basic-box').style.display='';document.getElementById('pc-split-box').style.display='none';};
+document.getElementById('pc-split').onclick=function(){document.getElementById('pc-split').classList.add('active');document.getElementById('pc-basic').classList.remove('active');document.getElementById('pc-basic-box').style.display='none';document.getElementById('pc-split-box').style.display='';renderSplitCharts();};
+
+var boxData = {
+  all:{reg:{min:-4.36,q1:5.80,median:12.03,mean:15.93,q3:18.86,max:38.45},un:{min:-3.92,q1:0.45,median:1.98,mean:6.96,q3:4.62,max:10.88},n:'등록 n=32,000 · 미등록 n=1,101',p:'p<0.001',r:'r=−0.631',hypo:'프로필 등록 고객이 미등록 고객보다 완료당 순이익이 높을 것이다 (전체)'},
+  bogo:{reg:{min:0.01,q1:4.27,median:9.57,mean:13.97,q3:16.28,max:34.30},un:{min:0.01,q1:0.65,median:1.70,mean:6.69,q3:3.57,max:7.95},n:'등록 n=15,100 · 미등록 n=401',p:'p<0.001',r:'r=−0.607',hypo:'프로필 등록 고객이 미등록 고객보다 완료당 순이익이 높을 것이다 (BOGO 한정)'},
+  discount:{reg:{min:-4.36,q1:8.04,median:14.33,mean:17.67,q3:20.67,max:39.62},un:{min:-3.92,q1:0.15,median:2.27,mean:7.12,q3:5.2,max:12.79},n:'등록 n=16,900 · 미등록 n=700',p:'p<0.001',r:'r=−0.672',hypo:'프로필 등록 고객이 미등록 고객보다 완료당 순이익이 높을 것이다 (Discount 한정)'},
+  excl:{reg:{min:-4.36,q1:5.44,median:11.51,mean:15.54,q3:18.37,max:37.76},un:{min:-3.92,q1:0.44,median:2.10,mean:7.30,q3:4.68,max:11.04},n:'등록 n=22,334 · 미등록 n=933',p:'p<0.001',r:'r=−0.613',hypo:'Free rider를 제외해도 등록·미등록 간 순이익 격차가 유지될 것이다'}
+};
+var chartH31 = new Chart(document.getElementById('c-h31'), {
+  type:'boxplot', data:{labels:['등록','미등록'],datasets:[{data:[boxData.all.reg,boxData.all.un],backgroundColor:[C.greenBg,C.brownBg],borderColor:[C.green,C.brown],borderWidth:2,itemRadius:0,meanBackgroundColor:[C.green,C.brown],meanRadius:5,meanStyle:'rectRot'}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:42,grid:{color:C.grid},title:{display:true,text:'완료당 순이익($)',font:{size:11}}},x:{grid:{display:false}}}}
+});
+function renderH31Stats(v){var d=boxData[v];document.getElementById('h31-stats').innerHTML='<span class="stat-chip">'+d.n+'</span><span class="stat-chip">'+d.p+'</span><span class="stat-chip">'+d.r+'</span><span class="stat-chip">◆ 평균 등록 $'+d.reg.mean+' · 미등록 $'+d.un.mean+'</span>';document.getElementById('h31-hypo').innerHTML='원 가설: '+d.hypo+'.';}
+renderH31Stats('all');
+document.querySelectorAll('.tabs button[data-view]').forEach(function(btn){
+  btn.onclick=function(){
+    document.querySelectorAll('.tabs button[data-view]').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    var v=btn.getAttribute('data-view'), d=boxData[v];
+    chartH31.data.datasets[0].data=[d.reg,d.un]; chartH31.update();
+    renderH31Stats(v);
+  };
+});
+
+new Chart(document.getElementById('c-h32'), {
+  type:'bar', data:{labels:['등록·정상','등록·Free rider','미등록·정상','미등록·Free rider'],datasets:[{data:[69.79,30.21,84.74,15.26],backgroundColor:[C.green,C.greenL,C.brown,C.brownL],borderRadius:5,maxBarThickness:28}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.parsed.x+'%';}}}},
+    scales:{x:{beginAtZero:true,max:100,grid:{color:C.grid},ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+});
+new Chart(document.getElementById('c-h32b'), {
+  type:'bar', data:{labels:['등록·정상','등록·Free rider','미등록·정상','미등록·Free rider'],datasets:[{data:[11.51,13.25,2.10,1.52],backgroundColor:[C.green,C.greenL,C.brown,C.brownL],borderRadius:5,maxBarThickness:28}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return '중앙값 $'+c.parsed.x;}}}},
+    scales:{x:{beginAtZero:true,max:16,grid:{color:C.grid},ticks:{callback:function(v){return '$'+v;}}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+});
+
+}catch(e){ console.warn('Chart.js render failed', e); } }
+else { console.warn('Chart.js unavailable — canvas charts skipped'); }
+
+/* active sidebar nav on scroll */
+var navLinks = document.querySelectorAll('.sb-nav a');
+var sections = ['top','h1','h2','h3','synthesis','master-table'].map(function(id){return document.getElementById(id);});
+window.addEventListener('scroll', function(){
+  var pos = window.scrollY + 90;
+  var current = sections[0];
+  sections.forEach(function(s){ if(s && s.offsetTop <= pos) current = s; });
+  navLinks.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href')==='#'+current.id); });
+}, {passive:true});
+
+})();
+</script>
+</body></html>
